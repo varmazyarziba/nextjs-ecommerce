@@ -251,7 +251,9 @@ exports.getCategoryPage = async (req, res) => {
   try {
     const { slug } = req.params;
 
-    // پیدا کردن دسته
+    // -----------------------------------------
+    // 1) پیدا کردن دسته فعلی
+    // -----------------------------------------
     const category = await Category.findOne({
       slug,
       isActive: true,
@@ -263,45 +265,71 @@ exports.getCategoryPage = async (req, res) => {
       });
     }
 
-    // تمام دسته‌ها
+    // -----------------------------------------
+    // 2) دریافت تمام دسته‌های فعال
+    // فقط یک بار از دیتابیس می‌گیریم
+    // -----------------------------------------
     const categories = await Category.find({
       isActive: true,
-    }).lean();
+    })
+      .sort({ order: 1 })
+      .lean();
 
-    /**
-     * پیدا کردن همه فرزندان
-     */
+    // -----------------------------------------
+    // 3) ساخت Map برای دسترسی سریع به دسته‌ها
+    // -----------------------------------------
+    const categoryMap = new Map(
+      categories.map((item) => [
+        item._id.toString(),
+        item,
+      ])
+    );
+
+    // -----------------------------------------
+    // 4) پیدا کردن تمام زیرمجموعه‌های یک دسته
+    // -----------------------------------------
     const getChildrenIds = (parentId) => {
-      let ids = [];
+      const result = [];
 
-      const children = categories.filter(
-        (item) =>
-          item.parent &&
-          item.parent.toString() === parentId.toString()
-      );
+      const findChildren = (currentParentId) => {
+        for (const item of categories) {
+          if (
+            item.parent &&
+            item.parent.toString() ===
+              currentParentId.toString()
+          ) {
+            result.push(item._id);
+            findChildren(item._id);
+          }
+        }
+      };
 
-      children.forEach((child) => {
-        ids.push(child._id);
-        ids = ids.concat(getChildrenIds(child._id));
-      });
+      findChildren(parentId);
 
-      return ids;
+      return result;
     };
 
-    // زیر دسته‌های مستقیم
+    // -----------------------------------------
+    // 5) زیر دسته‌های مستقیم
+    // -----------------------------------------
     const children = categories.filter(
       (item) =>
         item.parent &&
-        item.parent.toString() === category._id.toString()
+        item.parent.toString() ===
+          category._id.toString()
     );
 
-    // همه شناسه‌ها
+    // -----------------------------------------
+    // 6) تمام ID های دسته فعلی + زیرمجموعه‌ها
+    // -----------------------------------------
     const categoryIds = [
       category._id,
       ...getChildrenIds(category._id),
     ];
 
-    // محصولات
+    // -----------------------------------------
+    // 7) دریافت محصولات این دسته و تمام فرزندان
+    // -----------------------------------------
     const products = await Product.find({
       category: {
         $in: categoryIds,
@@ -309,12 +337,38 @@ exports.getCategoryPage = async (req, res) => {
       isActive: true,
     })
       .populate("category", "title slug")
+      .sort({ createdAt: -1 })
       .lean();
 
-    /**
-     * breadcrumb
-     */
+    // -----------------------------------------
+    // 8) ساخت مسیر کامل دسته
+    // مثال:
+    // mazhwl-43434/mazhwl-1/m-5
+    // -----------------------------------------
+    const buildFullPath = (cat) => {
+      if (!cat) return "";
 
+      const path = [];
+      let current = cat;
+
+      while (current) {
+        path.unshift(current.slug);
+
+        if (!current.parent) {
+          break;
+        }
+
+        current = categoryMap.get(
+          current.parent.toString()
+        );
+      }
+
+      return path.join("/");
+    };
+
+    // -----------------------------------------
+    // 9) ساخت Breadcrumb
+    // -----------------------------------------
     const breadcrumb = [];
 
     let current = category;
@@ -323,71 +377,130 @@ exports.getCategoryPage = async (req, res) => {
       breadcrumb.unshift({
         title: current.title,
         slug: current.slug,
+        fullPath: buildFullPath(current),
       });
 
-      if (!current.parent) break;
+      if (!current.parent) {
+        break;
+      }
 
-      current = categories.find(
-        (item) =>
-          item._id.toString() === current.parent.toString()
+      current = categoryMap.get(
+        current.parent.toString()
       );
     }
-const buildFullPath = (cat) => {
-  const path = [];
 
-  let current = cat;
-
-  while (current) {
-    path.unshift(current.slug);
-
-    if (!current.parent) break;
-
-    current = categories.find(
-      (item) =>
-        item._id.toString() === current.parent.toString()
-    );
-  }
-
-  return path.join("/");
-};
-/**
- * ساخت درخت دسته‌ها
- */
-const buildTree = (parent = null) => {
-  return categories
-    .filter((item) =>
-      parent === null
-        ? item.parent === null
-        : item.parent?.toString() === parent.toString()
-    )
-    .map((item) => ({
+    // -----------------------------------------
+    // 10) اضافه کردن fullPath به دسته‌های مستقیم
+    // -----------------------------------------
+    const childrenWithPath = children.map((item) => ({
       ...item,
       fullPath: buildFullPath(item),
-      children: buildTree(item._id),
     }));
-};
 
-const categoryTree = buildTree();
+    // -----------------------------------------
+    // 11) اضافه کردن categoryPath به محصولات
+    // -----------------------------------------
+    const productsWithPath = products.map((product) => {
+      const productCategory =
+        product.category?._id
+          ? categoryMap.get(
+              product.category._id.toString()
+            )
+          : null;
 
+      return {
+        ...product,
+        categoryPath: buildFullPath(
+          productCategory
+        ),
+      };
+    });
 
-  res.json({
-  category: {
-    ...category,
-    fullPath: buildFullPath(category),
-  },
+    // -----------------------------------------
+    // 12) ساخت Category Tree
+    // -----------------------------------------
+    const buildTree = (parentId = null) => {
+      return categories
+        .filter((item) => {
+          if (parentId === null) {
+            return !item.parent;
+          }
 
-  breadcrumb,
+          return (
+            item.parent &&
+            item.parent.toString() ===
+              parentId.toString()
+          );
+        })
+        .map((item) => ({
+          ...item,
+          fullPath: buildFullPath(item),
+          children: buildTree(item._id),
+        }));
+    };
 
-  children: children.map((item) => ({
-    ...item,
-    fullPath: buildFullPath(item),
-  })),
+    const categoryTree = buildTree();
 
-  products,
+    // -----------------------------------------
+    // 13) محاسبه حداقل و حداکثر قیمت واقعی
+    //
+    // اگر discountPrice معتبر باشد،
+    // قیمت نهایی = discountPrice
+    // در غیر این صورت = price
+    // -----------------------------------------
+    const prices = productsWithPath
+      .map((product) => {
+        const hasValidDiscount =
+          typeof product.discountPrice === "number" &&
+          product.discountPrice > 0 &&
+          product.discountPrice < product.price;
 
-  categoryTree,
-});
+        return hasValidDiscount
+          ? product.discountPrice
+          : product.price;
+      })
+      .filter(
+        (price) =>
+          typeof price === "number" &&
+          Number.isFinite(price) &&
+          price >= 0
+      );
+
+    const priceRange = {
+      min: prices.length
+        ? Math.min(...prices)
+        : 0,
+
+      max: prices.length
+        ? Math.max(...prices)
+        : 0,
+    };
+
+    // -----------------------------------------
+    // 14) پاسخ نهایی
+    // -----------------------------------------
+    res.json({
+      category: {
+        ...category,
+        fullPath: buildFullPath(category),
+      },
+
+      breadcrumb,
+
+      children: childrenWithPath,
+
+      products: productsWithPath,
+
+      categoryTree,
+
+      priceRange,
+    });
   } catch (error) {
+    console.error(
+      "getCategoryPage error:",
+      error
+    );
+
     res.status(500).json({
       message: error.message,
     });

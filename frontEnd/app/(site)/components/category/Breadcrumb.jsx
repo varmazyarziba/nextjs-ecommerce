@@ -3,7 +3,7 @@ import { ChevronLeft } from "lucide-react";
 
 export default function Breadcrumb({ items = [] }) {
   return (
-    <nav className="flex items-center flex-wrap gap-2 text-sm text-gray-500 mb-6">
+    <nav className="flex items-center flex-wrap gap-2 text-md text-gray-500 mb-6">
 
       <Link
         href="/"
