@@ -49,7 +49,7 @@ export default function Home() {
       </section>
 
       {/* Categories Section */}
-      <section className="max-w-9xl bg-purple-500 rounded-xl shadow-purple-500/50 mx-auto py-4 px-4">
+      <section className="max-w-9xl bg-[#f6f6f6] rounded-xl shadow-purple-500/50 mx-auto py-4 px-4">
        <div className="flex justify-between mb-6">
         <p className="text-2xl font-bold text-white "> محصولات جدید </p>
         <div className="flex  text-white bg-red-500 py-2 px-3 rounded-3xl">

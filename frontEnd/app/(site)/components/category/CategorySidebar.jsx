@@ -1,58 +1,38 @@
 "use client";
 
-import SidebarTree from "./sidebarTree";
+import CategoryFilter from "./CategoryFilter";
+import PriceFilter from "./PriceFilter";
+import AvailabilityFilter from "./AvailabilityFilter";
 
 export default function CategorySidebar({
   categoryTree = [],
   currentPath = "",
+  priceRange = { min: 0, max: 0 },
+  onlyInStock = false,
+  onPriceApply,
+  onStockChange,
 }) {
   return (
     <aside
-      className="
-        bg-white
-        rounded-xl
-        border
-        border-gray-200
-        shadow-sm
-        sticky
-        top-5
-        overflow-hidden
-      "
-    >
-      {/* Header */}
-      <div
-        className="
-          px-5
-          py-4
-          bg-gray-50
-          border-b
-          border-gray-200
-        "
-      >
-        <h2
-          className="
-            text-lg
-            font-bold
-            text-gray-800
+      dir="rtl"
+     className=" text-sm 
           "
-        >
-          دسته‌بندی کالاها
-        </h2>
-      </div>
+    >
+      <CategoryFilter
+        categoryTree={categoryTree}
+        currentPath={currentPath}
+      />
 
-      {/* Tree */}
-      <div
-        className="
-          p-4
-          max-h-[700px]
-          overflow-y-auto
-        "
-      >
-        <SidebarTree
-          items={categoryTree}
-          currentPath={currentPath}
-        />
-      </div>
+      <PriceFilter
+        min={priceRange.min}
+        max={priceRange.max}
+        onApply={onPriceApply}
+      />
+
+      <AvailabilityFilter
+        value={onlyInStock}
+        onChange={onStockChange}
+      />
     </aside>
   );
 }

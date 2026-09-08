@@ -1,6 +1,6 @@
 "use client";
 
-import SidebarNode from "./sidebarNode";
+import SidebarNode from "./SidebarNode";
 
 export default function SidebarTree({
   items = [],

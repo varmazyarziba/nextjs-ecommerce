@@ -60,10 +60,7 @@ export default async function CategoryPage({ params }) {
     <div className="max-w-[1500px] mx-auto px-5 py-8">
       <Breadcrumb items={breadcrumb} />
 
-      <h1 className="text-3xl font-bold mb-8">
-        {category.title}
-      </h1>
-
+     
       <div className="grid grid-cols-12 gap-6">
         <aside className="col-span-12 lg:col-span-3">
           <CategorySidebar

@@ -10,17 +10,26 @@ export default function ProductGrid({ products }) {
   }
 console.log(products);
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-
+  
+    <div>
+      <div className=" flex border border-gray-200 block p-3 mb-3">
+        <span className="text-2xl  ">
+          فروشگاه
+        </span>
+        <span></span>
+      </div>
+     <div  className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 ">
+    
+     
       {products.map((product) => (
 
         <Link
           key={product._id}
           href={`/${product.categoryPath}/${product.slug}`}
-          className="bg-white rounded-xl border hover:shadow-lg transition overflow-hidden group"
+          className="bg-white rounded-xl  hover:shadow-lg transition overflow-hidden group"
         >
 
-          <div className="aspect-square bg-gray-100 flex items-center justify-center">
+          <div className="aspect-square  flex items-center justify-center">
 
             {product.images?.length ? (
               <img
@@ -69,7 +78,8 @@ console.log(products);
         </Link>
 
       ))}
-
     </div>
+    </div>
+   
   );
 }
